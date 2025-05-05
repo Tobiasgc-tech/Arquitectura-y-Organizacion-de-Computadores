@@ -1,0 +1,9 @@
+== Ejercicio 1a ==
+
+Cliente susan: 0 0
+Cliente bob: 0 0
+Cliente nicolas: 0 0
+Cliente gabi: 0 0
+Cliente tini: 0 0
+Cliente orne: 0 0
+Cliente fransa: 0 0
