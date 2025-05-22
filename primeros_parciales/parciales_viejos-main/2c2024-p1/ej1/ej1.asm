@@ -14,21 +14,21 @@ TRUE  EQU 1
 ; Funciones a implementar:
 ;   - es_indice_ordenado
 global EJERCICIO_1A_HECHO
-EJERCICIO_1A_HECHO: db FALSE ; Cambiar por `TRUE` para correr los tests.
+EJERCICIO_1A_HECHO: db TRUE ; Cambiar por `TRUE` para correr los tests.
 
 ; Marca el ejercicio 1B como hecho (`true`) o pendiente (`false`).
 ;
 ; Funciones a implementar:
 ;   - indice_a_inventario
 global EJERCICIO_1B_HECHO
-EJERCICIO_1B_HECHO: db FALSE ; Cambiar por `TRUE` para correr los tests.
+EJERCICIO_1B_HECHO: db TRUE ; Cambiar por `TRUE` para correr los tests.
 
 ;########### ESTOS SON LOS OFFSETS Y TAMAÑO DE LOS STRUCTS
 ; Completar las definiciones (serán revisadas por ABI enforcer):
-ITEM_NOMBRE EQU ??
-ITEM_FUERZA EQU ??
-ITEM_DURABILIDAD EQU ??
-ITEM_SIZE EQU ??
+ITEM_NOMBRE EQU 0
+ITEM_FUERZA EQU 20
+ITEM_DURABILIDAD EQU 24
+ITEM_SIZE EQU 28
 
 ;; La funcion debe verificar si una vista del inventario está correctamente 
 ;; ordenada de acuerdo a un criterio (comparador)
@@ -59,12 +59,71 @@ es_indice_ordenado:
 	; ubicación según la convención de llamada. Prestá atención a qué
 	; valores son de 64 bits y qué valores son de 32 bits o 8 bits.
 	;
-	; r/m64 = item_t**     inventario
-	; r/m64 = uint16_t*    indice
-	; r/m16 = uint16_t     tamanio
-	; r/m64 = comparador_t comparador
-		ret
+	; rdi = item_t**     inventario
+	; rsi = uint16_t*    indice
+	; dx = uint16_t     tamanio
+	; rcx = comparador_t comparador
 
+	push rbp
+	mov rbp, rsp
+	push r12
+	push r13
+	push r14
+	push r15
+	push rbx
+	sub rbp, 8
+
+	; Guardamos argumentos
+	mov r12, rdi        ; r12 = inventario
+	mov r13, rsi        ; r13 = indice
+	movzx r14, dx       ; r14 = tamanio (zero-extend porque es uint16_t)
+	mov r15, rcx        ; r15 = comparador
+
+	mov rbx, 1          ; repuesta = true
+
+	cmp r14, 1
+	jbe .fin            ; Si tamanio <= 1, ya está ordenado
+
+	xor r8, r8          ; r8 = i
+	dec r14
+.loop
+	cmp r8, r14        ; Si i+1 >= tamanio, salir
+	je .fin
+
+	; r9 = indice[i]
+	movzx r9, word [r13 + r8*2]
+	; r10 = indice[i+1]
+	mov r11, r8
+	inc r11
+	movzx r10, word [r13 + r11*2]
+
+	; rdi = inventario[indice[i]]
+	mov rdi, [r12 + r9*8]
+	; rsi = inventario[indice[i+1]]
+	mov rsi, [r12 + r10*8]
+
+	call r15            ; comparador(item1, item2)
+
+	cmp rax, 0
+	je .desordenado
+
+	inc r8
+	jmp .loop
+
+.desordenado:
+	mov rbx, 0
+
+.fin:
+	mov rax, rbx
+
+	add rbp, 8
+	pop rbx
+	pop r15
+	pop r14
+	pop r13
+	pop r12
+	pop rbp
+ret
 ;; Dado un inventario y una vista, crear un nuevo inventario que mantenga el
 ;; orden descrito por la misma.
 
@@ -91,7 +150,39 @@ indice_a_inventario:
 	; ubicación según la convención de llamada. Prestá atención a qué
 	; valores son de 64 bits y qué valores son de 32 bits o 8 bits.
 	;
-	; r/m64 = item_t**  inventario
-	; r/m64 = uint16_t* indice
-	; r/m16 = uint16_t  tamanio
+	; rdi = item_t**  inventario
+	; rsi = uint16_t* indice
+	; dx = uint16_t  tamanio
+	push rbp
+	mov rbp, rsp
+	push r12
+	push r13
+	push r14
+	sub rbp, 8
+
+	mov r12, rdi
+	mov r13, rsi
+	xor r14, r14
+	mov r14w, dx
+
+	mov rdi, r14
+	imul rdi, 8
+	call malloc
+	mov r10, rax
+	xor r8, r8
+	.loop:
+		cmp r8, r14
+		je .fin
+		movzx r9, word [r13 + r8*2]
+		mov r10, [r12 + r9*8]      ; r10 = inventario[indice[i]]
+		mov [rax + r8*8], r10      ; resultado[i] = r10 
+		inc r8
+		jmp .loop
+
+	.fin:
+	add rbp, 8
+	pop r14
+	pop r13
+	pop r12
+	pop rbp
 	ret
